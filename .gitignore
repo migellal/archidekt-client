@@ -54,6 +54,12 @@ captures/
 .idea/kotlinc.xml
 .idea/misc.xml
 .idea/vcs.xml
+.idea/migrations.xml
+.idea/.gitignore
+.idea/AndroidProjectSystem.xml
+.idea/appInsightsSettings.xml
+.idea/deploymentTargetSelector.xml
+.idea/runConfigurations.xml
 
 # Keep .idea/codeStyles for consistent formatting
 !.idea/codeStyles/

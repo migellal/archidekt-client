@@ -49,6 +49,7 @@ import pl.michalgellert.archidektclient.data.model.DeckColors
 import pl.michalgellert.archidektclient.data.model.DeckFormat
 import pl.michalgellert.archidektclient.data.model.DeckSummary
 import pl.michalgellert.archidektclient.data.model.Subfolder
+import pl.michalgellert.archidektclient.ui.components.AppOverflowMenu
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -61,7 +62,8 @@ fun DecksListScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("My Decks") }
+                title = { Text("My Decks") },
+                actions = { AppOverflowMenu() }
             )
         }
     ) { padding ->

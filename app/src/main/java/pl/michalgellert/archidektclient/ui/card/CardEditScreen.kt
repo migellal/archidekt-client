@@ -74,6 +74,9 @@ import coil3.request.crossfade
 import pl.michalgellert.archidektclient.data.model.CardData
 import pl.michalgellert.archidektclient.data.model.CategoryInfo
 import pl.michalgellert.archidektclient.data.model.ColorLabel
+import pl.michalgellert.archidektclient.ui.components.AppOverflowMenu
+import pl.michalgellert.archidektclient.ui.theme.contrastingTextColor
+import pl.michalgellert.archidektclient.ui.theme.parseColorSafe
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -154,6 +157,7 @@ fun CardEditScreen(
                             }
                         }
                     }
+                    AppOverflowMenu()
                 }
             )
         },
@@ -181,7 +185,7 @@ fun CardEditScreen(
                     // Card Image and Info
                     CardHeader(card = uiState.card!!)
 
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
 
                     // Tag Selection
                     TagSection(
@@ -190,7 +194,7 @@ fun CardEditScreen(
                         onTagSelect = viewModel::selectTag
                     )
 
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
 
                     // Category Selection
                     CategorySection(
@@ -201,7 +205,7 @@ fun CardEditScreen(
                         onMoveDown = viewModel::moveCategoryDown
                     )
 
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
 
                     // Quantity
                     QuantitySection(
@@ -210,7 +214,7 @@ fun CardEditScreen(
                         onDecrement = viewModel::decrementQuantity
                     )
 
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
 
                     // Oracle Text
                     uiState.card?.let { card ->
@@ -219,7 +223,7 @@ fun CardEditScreen(
                         }
                     }
 
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
 
                     // Action Buttons
                     ActionButtonsSection(
@@ -232,7 +236,7 @@ fun CardEditScreen(
                         isLoading = uiState.isDeleting || uiState.isAddingCopy
                     )
 
-                    Spacer(modifier = Modifier.height(32.dp))
+                    Spacer(modifier = Modifier.height(24.dp))
                 }
             }
         }
@@ -282,13 +286,13 @@ private fun CardHeader(card: CardData) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(16.dp),
+            .padding(horizontal = 16.dp, vertical = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         // Card Images - show both sides for double-faced cards
         if (card.isDoubleFaced && card.backImageUrl != null) {
             Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -297,13 +301,13 @@ private fun CardHeader(card: CardData) {
                 CardImage(
                     imageUrl = card.fullImageUrl,
                     contentDescription = card.frontFaceName,
-                    modifier = Modifier.width(140.dp)
+                    modifier = Modifier.width(110.dp)
                 )
                 // Back face
                 CardImage(
                     imageUrl = card.backImageUrl,
                     contentDescription = card.backFaceName ?: "Back",
-                    modifier = Modifier.width(140.dp)
+                    modifier = Modifier.width(110.dp)
                 )
                 Spacer(modifier = Modifier.weight(1f))
             }
@@ -312,32 +316,34 @@ private fun CardHeader(card: CardData) {
             CardImage(
                 imageUrl = card.fullImageUrl,
                 contentDescription = card.name,
-                modifier = Modifier.width(200.dp)
+                modifier = Modifier.width(150.dp)
             )
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
         // Card Name
         Text(
             text = card.displayCardName,
-            style = MaterialTheme.typography.headlineSmall,
+            style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold
         )
 
-        // Mana Cost
-        if (card.manaCostSymbols.isNotEmpty()) {
-            Spacer(modifier = Modifier.height(8.dp))
-            ManaCostRow(manaCost = card.manaCostSymbols)
+        // Mana Cost + Type Line in one row
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (card.manaCostSymbols.isNotEmpty()) {
+                ManaCostRow(manaCost = card.manaCostSymbols)
+                Text("•", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Text(
+                text = card.typeLine,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
-
-        // Type Line
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(
-            text = card.typeLine,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
     }
 }
 
@@ -428,45 +434,61 @@ private fun TagSection(
     Column(modifier = Modifier.padding(horizontal = 16.dp)) {
         Text(
             text = "Tag",
-            style = MaterialTheme.typography.titleMedium,
+            style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.SemiBold
         )
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(6.dp))
 
         FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             // Default Tag option (no tag)
             val isDefaultSelected = selectedTag == null || selectedTag.name.isBlank()
             FilterChip(
                 selected = isDefaultSelected,
                 onClick = { onTagSelect(null) },
-                label = { Text("Default Tag") },
+                label = { Text("Default", style = MaterialTheme.typography.labelSmall) },
                 leadingIcon = if (isDefaultSelected) {
-                    { Icon(Icons.Default.Check, contentDescription = null, Modifier.size(16.dp)) }
+                    { Icon(Icons.Default.Check, contentDescription = null, Modifier.size(14.dp)) }
                 } else null
             )
 
             // Available tags
             availableTags.filter { it.name.isNotBlank() }.forEach { tag ->
-                val tagColor = parseColor(tag.color)
+                val tagColor = parseColorSafe(tag.color)
                 val isSelected = selectedTag?.name == tag.name
+                val textColor = tagColor.contrastingTextColor()
 
                 FilterChip(
                     selected = isSelected,
                     onClick = { onTagSelect(tag) },
-                    label = { Text(tag.name) },
-                    leadingIcon = {
-                        Box(
-                            modifier = Modifier
-                                .size(12.dp)
-                                .clip(CircleShape)
-                                .background(tagColor)
+                    label = {
+                        Text(
+                            text = tag.name,
+                            color = if (isSelected) textColor else tagColor,
+                            style = MaterialTheme.typography.labelSmall
                         )
                     },
+                    leadingIcon = if (!isSelected) {
+                        {
+                            Box(
+                                modifier = Modifier
+                                    .size(10.dp)
+                                    .clip(CircleShape)
+                                    .background(tagColor)
+                            )
+                        }
+                    } else null,
                     colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = tagColor.copy(alpha = 0.2f)
+                        selectedContainerColor = tagColor,
+                        selectedLabelColor = textColor
+                    ),
+                    border = FilterChipDefaults.filterChipBorder(
+                        enabled = true,
+                        selected = isSelected,
+                        borderColor = tagColor.copy(alpha = 0.5f),
+                        selectedBorderColor = tagColor
                     )
                 )
             }
@@ -490,28 +512,21 @@ private fun CategorySection(
         ) {
             Text(
                 text = "Categories",
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.SemiBold
             )
             TextButton(onClick = onEditClick) {
-                Text("Edit")
+                Text("Edit", style = MaterialTheme.typography.labelMedium)
             }
         }
 
         if (selectedCategories.isNotEmpty()) {
-            Text(
-                text = "First category determines card placement",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-
             // Ordered list of selected categories
             selectedCategories.forEachIndexed { index, category ->
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 4.dp),
+                        .padding(vertical = 2.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     // Position indicator
@@ -521,7 +536,7 @@ private fun CategorySection(
                         else
                             MaterialTheme.colorScheme.surfaceVariant,
                         shape = CircleShape,
-                        modifier = Modifier.size(24.dp)
+                        modifier = Modifier.size(20.dp)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Text(
@@ -535,12 +550,12 @@ private fun CategorySection(
                         }
                     }
 
-                    Spacer(modifier = Modifier.width(12.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
 
                     // Category name
                     Text(
                         text = category,
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = MaterialTheme.typography.bodySmall,
                         modifier = Modifier.weight(1f)
                     )
 
@@ -548,11 +563,12 @@ private fun CategorySection(
                     IconButton(
                         onClick = { onMoveUp(category) },
                         enabled = index > 0,
-                        modifier = Modifier.size(32.dp)
+                        modifier = Modifier.size(28.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.KeyboardArrowUp,
                             contentDescription = "Move up",
+                            modifier = Modifier.size(18.dp),
                             tint = if (index > 0)
                                 MaterialTheme.colorScheme.primary
                             else
@@ -564,11 +580,12 @@ private fun CategorySection(
                     IconButton(
                         onClick = { onMoveDown(category) },
                         enabled = index < selectedCategories.size - 1,
-                        modifier = Modifier.size(32.dp)
+                        modifier = Modifier.size(28.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.KeyboardArrowDown,
                             contentDescription = "Move down",
+                            modifier = Modifier.size(18.dp),
                             tint = if (index < selectedCategories.size - 1)
                                 MaterialTheme.colorScheme.primary
                             else
@@ -593,43 +610,41 @@ private fun QuantitySection(
     onIncrement: () -> Unit,
     onDecrement: () -> Unit
 ) {
-    Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+    Row(
+        modifier = Modifier.padding(horizontal = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
         Text(
             text = "Quantity",
-            style = MaterialTheme.typography.titleMedium,
+            style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.SemiBold
         )
-        Spacer(modifier = Modifier.height(8.dp))
 
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        OutlinedButton(
+            onClick = onDecrement,
+            enabled = quantity > 1,
+            modifier = Modifier.size(36.dp),
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)
         ) {
-            OutlinedButton(
-                onClick = onDecrement,
-                enabled = quantity > 1,
-                modifier = Modifier.size(48.dp),
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)
-            ) {
-                Icon(Icons.Default.Delete, contentDescription = "Decrease")
-            }
+            Icon(Icons.Default.Delete, contentDescription = "Decrease", modifier = Modifier.size(18.dp))
+        }
 
-            Text(
-                text = quantity.toString(),
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.width(48.dp),
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center
-            )
+        Text(
+            text = quantity.toString(),
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.width(32.dp),
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+        )
 
-            OutlinedButton(
-                onClick = onIncrement,
-                enabled = quantity < 99,
-                modifier = Modifier.size(48.dp),
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Increase")
-            }
+        OutlinedButton(
+            onClick = onIncrement,
+            enabled = quantity < 99,
+            modifier = Modifier.size(36.dp),
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)
+        ) {
+            Icon(Icons.Default.Add, contentDescription = "Increase", modifier = Modifier.size(18.dp))
         }
     }
 }
@@ -642,10 +657,10 @@ private fun OracleTextSection(card: CardData) {
     Column(modifier = Modifier.padding(horizontal = 16.dp)) {
         Text(
             text = "Oracle Text",
-            style = MaterialTheme.typography.titleMedium,
+            style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.SemiBold
         )
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(6.dp))
 
         // Check if card is double-faced with separate texts
         if (card.isDoubleFaced && backText != null) {
@@ -773,7 +788,7 @@ private fun ActionButtonsSection(
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Add Copy")
+                    Text("Add new copy")
                 }
             }
         }
@@ -827,10 +842,3 @@ private fun CategorySelectionDialog(
     )
 }
 
-private fun parseColor(colorString: String): Color {
-    return try {
-        Color(android.graphics.Color.parseColor(colorString))
-    } catch (e: Exception) {
-        Color.Gray
-    }
-}

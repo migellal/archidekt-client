@@ -100,6 +100,9 @@ import pl.michalgellert.archidektclient.data.model.CardGroup
 import pl.michalgellert.archidektclient.data.model.ColorLabel
 import pl.michalgellert.archidektclient.data.model.DeckFormat
 import pl.michalgellert.archidektclient.data.model.SearchResultCard
+import pl.michalgellert.archidektclient.ui.components.AppOverflowMenu
+import pl.michalgellert.archidektclient.ui.theme.contrastingTextColor
+import pl.michalgellert.archidektclient.ui.theme.parseColorSafe
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -116,6 +119,7 @@ fun DeckDetailsScreen(
     val scope = rememberCoroutineScope()
 
     var showAddCardSheet by remember { mutableStateOf(false) }
+    var showSearchBar by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     // Load deck on first composition
@@ -156,19 +160,51 @@ fun DeckDetailsScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Text(
-                        text = uiState.deckName.ifBlank { deckName },
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBackClick) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
+                    if (showSearchBar) {
+                        OutlinedTextField(
+                            value = uiState.searchQuery,
+                            onValueChange = viewModel::setSearchQuery,
+                            modifier = Modifier.fillMaxWidth(),
+                            placeholder = { Text("Search cards...") },
+                            singleLine = true,
+                            trailingIcon = {
+                                if (uiState.searchQuery.isNotEmpty()) {
+                                    IconButton(onClick = { viewModel.setSearchQuery("") }) {
+                                        Icon(Icons.Default.Clear, contentDescription = "Clear")
+                                    }
+                                }
+                            }
+                        )
+                    } else {
+                        Text(
+                            text = uiState.deckName.ifBlank { deckName },
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
+                },
+                navigationIcon = {
+                    IconButton(onClick = {
+                        if (showSearchBar) {
+                            showSearchBar = false
+                            viewModel.setSearchQuery("")
+                        } else {
+                            onBackClick()
+                        }
+                    }) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = if (showSearchBar) "Close search" else "Back"
+                        )
+                    }
+                },
+                actions = {
+                    if (!showSearchBar) {
+                        IconButton(onClick = { showSearchBar = true }) {
+                            Icon(Icons.Default.Search, contentDescription = "Search")
+                        }
+                    }
+                    AppOverflowMenu()
                 }
             )
         },
@@ -260,7 +296,7 @@ fun DeckDetailsScreen(
                         )
                     }
 
-                    // Tag summary (clickable filters)
+                    // Tag summary (clickable filters) + View controls in one compact section
                     if (uiState.tagSummary.isNotEmpty()) {
                         item {
                             TagSummary(
@@ -270,14 +306,6 @@ fun DeckDetailsScreen(
                                 onTagClick = viewModel::toggleTag
                             )
                         }
-                    }
-
-                    // Search bar
-                    item {
-                        SearchBar(
-                            query = uiState.searchQuery,
-                            onQueryChange = viewModel::setSearchQuery
-                        )
                     }
 
                     // View controls
@@ -383,14 +411,14 @@ private fun DeckHeader(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(16.dp),
+            .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Featured image
+        // Featured image (compact)
         Box(
             modifier = Modifier
-                .size(100.dp)
-                .clip(RoundedCornerShape(12.dp))
+                .size(72.dp)
+                .clip(RoundedCornerShape(8.dp))
                 .background(MaterialTheme.colorScheme.surfaceVariant)
         ) {
             featuredImage?.let { url ->
@@ -403,32 +431,39 @@ private fun DeckHeader(
             }
         }
 
-        Spacer(modifier = Modifier.width(16.dp))
+        Spacer(modifier = Modifier.width(12.dp))
 
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = deckName,
-                style = MaterialTheme.typography.titleLarge,
+                style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = DeckFormat.getName(deckFormat),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = if (sideboardCount > 0) {
-                    "$mainDeckCount cards (${mainDeckCount + sideboardCount})"
-                } else {
-                    "$mainDeckCount cards"
-                },
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = DeckFormat.getName(deckFormat),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = "•",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = if (sideboardCount > 0) {
+                        "$mainDeckCount (+$sideboardCount)"
+                    } else {
+                        "$mainDeckCount cards"
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
     }
 }
@@ -443,70 +478,42 @@ private fun TagSummary(
 ) {
     val colorMap = colorLabels.associateBy { it.name }
 
-    Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-        Text(
-            text = "Tags:",
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        LazyRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            items(tagSummary.entries.toList()) { (tagName, count) ->
-                val colorLabel = colorMap[tagName]
-                val tagColor = colorLabel?.color?.let { parseColor(it) }
-                    ?: MaterialTheme.colorScheme.primary
+    LazyRow(
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        items(tagSummary.entries.toList()) { (tagName, count) ->
+            val colorLabel = colorMap[tagName]
+            val tagColor = colorLabel?.color?.let { parseColorSafe(it) }
+                ?: MaterialTheme.colorScheme.primary
+            val textColor = tagColor.contrastingTextColor()
 
-                val isSelected = tagName in selectedTags || selectedTags.isEmpty()
+            val isSelected = tagName in selectedTags || selectedTags.isEmpty()
 
-                FilterChip(
-                    selected = isSelected,
-                    onClick = { onTagClick(tagName) },
-                    label = { Text("$tagName $count") },
-                    colors = FilterChipDefaults.filterChipColors(
-                        containerColor = MaterialTheme.colorScheme.surface,
-                        selectedContainerColor = tagColor.copy(alpha = 0.3f),
-                        labelColor = tagColor,
-                        selectedLabelColor = tagColor
-                    ),
-                    border = FilterChipDefaults.filterChipBorder(
-                        enabled = true,
-                        selected = isSelected,
-                        borderColor = tagColor.copy(alpha = 0.5f),
-                        selectedBorderColor = tagColor
+            FilterChip(
+                selected = isSelected,
+                onClick = { onTagClick(tagName) },
+                label = {
+                    Text(
+                        text = "$tagName $count",
+                        color = if (isSelected) textColor else tagColor,
+                        style = MaterialTheme.typography.labelSmall
                     )
+                },
+                colors = FilterChipDefaults.filterChipColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    selectedContainerColor = tagColor,
+                    selectedLabelColor = textColor
+                ),
+                border = FilterChipDefaults.filterChipBorder(
+                    enabled = true,
+                    selected = isSelected,
+                    borderColor = tagColor.copy(alpha = 0.5f),
+                    selectedBorderColor = tagColor
                 )
-            }
+            )
         }
     }
-}
-
-@Composable
-private fun SearchBar(
-    query: String,
-    onQueryChange: (String) -> Unit
-) {
-    OutlinedTextField(
-        value = query,
-        onValueChange = onQueryChange,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp),
-        placeholder = { Text("Search cards...") },
-        leadingIcon = {
-            Icon(Icons.Default.Search, contentDescription = null)
-        },
-        trailingIcon = {
-            if (query.isNotEmpty()) {
-                IconButton(onClick = { onQueryChange("") }) {
-                    Icon(Icons.Default.Clear, contentDescription = "Clear")
-                }
-            }
-        },
-        singleLine = true,
-        shape = RoundedCornerShape(12.dp)
-    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -520,43 +527,47 @@ private fun ViewControls(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp),
+            .padding(horizontal = 16.dp, vertical = 4.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         // View mode toggle
-        SingleChoiceSegmentedButtonRow {
+        SingleChoiceSegmentedButtonRow(
+            modifier = Modifier.height(32.dp)
+        ) {
             SegmentedButton(
                 selected = viewMode == ViewMode.GRID,
                 onClick = { onViewModeChange(ViewMode.GRID) },
                 shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2)
             ) {
-                Text("Grid")
+                Text("Grid", style = MaterialTheme.typography.labelSmall)
             }
             SegmentedButton(
                 selected = viewMode == ViewMode.LIST,
                 onClick = { onViewModeChange(ViewMode.LIST) },
                 shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2)
             ) {
-                Text("List")
+                Text("List", style = MaterialTheme.typography.labelSmall)
             }
         }
 
         // Grouping mode toggle
-        SingleChoiceSegmentedButtonRow {
+        SingleChoiceSegmentedButtonRow(
+            modifier = Modifier.height(32.dp)
+        ) {
             SegmentedButton(
                 selected = groupingMode == GroupingMode.TYPE,
                 onClick = { onGroupingModeChange(GroupingMode.TYPE) },
                 shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2)
             ) {
-                Text("Type")
+                Text("Type", style = MaterialTheme.typography.labelSmall)
             }
             SegmentedButton(
                 selected = groupingMode == GroupingMode.TAG,
                 onClick = { onGroupingModeChange(GroupingMode.TAG) },
                 shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2)
             ) {
-                Text("Tags")
+                Text("Tag", style = MaterialTheme.typography.labelSmall)
             }
         }
     }
@@ -571,15 +582,15 @@ private fun GroupHeader(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .padding(horizontal = 16.dp, vertical = 4.dp)
             .clickable(onClick = onClick),
         color = MaterialTheme.colorScheme.primaryContainer,
-        shape = RoundedCornerShape(8.dp)
+        shape = RoundedCornerShape(6.dp)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
+                .padding(horizontal = 10.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
@@ -588,24 +599,25 @@ private fun GroupHeader(
                 else
                     Icons.AutoMirrored.Filled.KeyboardArrowRight,
                 contentDescription = if (isExpanded) "Collapse" else "Expand",
-                tint = MaterialTheme.colorScheme.onPrimaryContainer
+                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                modifier = Modifier.size(20.dp)
             )
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(6.dp))
             Text(
                 text = group.name,
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onPrimaryContainer,
                 modifier = Modifier.weight(1f)
             )
             Surface(
                 color = MaterialTheme.colorScheme.primary,
-                shape = RoundedCornerShape(12.dp)
+                shape = RoundedCornerShape(10.dp)
             ) {
                 Text(
                     text = group.cardCount.toString(),
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
-                    style = MaterialTheme.typography.labelMedium,
+                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp),
+                    style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onPrimary
                 )
             }
@@ -616,18 +628,19 @@ private fun GroupHeader(
 @Composable
 private fun SideboardDivider() {
     Column(
-        modifier = Modifier.padding(vertical = 16.dp)
+        modifier = Modifier.padding(vertical = 12.dp)
     ) {
         HorizontalDivider(
             modifier = Modifier.padding(horizontal = 16.dp),
             color = MaterialTheme.colorScheme.outlineVariant,
-            thickness = 2.dp
+            thickness = 1.dp
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
             text = "Not in deck",
             modifier = Modifier.padding(horizontal = 16.dp),
-            style = MaterialTheme.typography.titleSmall,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
@@ -642,15 +655,15 @@ private fun SideboardGroupHeader(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .padding(horizontal = 16.dp, vertical = 4.dp)
             .clickable(onClick = onClick),
         color = MaterialTheme.colorScheme.surfaceVariant,
-        shape = RoundedCornerShape(8.dp)
+        shape = RoundedCornerShape(6.dp)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
+                .padding(horizontal = 10.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
@@ -659,24 +672,25 @@ private fun SideboardGroupHeader(
                 else
                     Icons.AutoMirrored.Filled.KeyboardArrowRight,
                 contentDescription = if (isExpanded) "Collapse" else "Expand",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(20.dp)
             )
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(6.dp))
             Text(
                 text = group.name,
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.weight(1f)
             )
             Surface(
                 color = MaterialTheme.colorScheme.outline,
-                shape = RoundedCornerShape(12.dp)
+                shape = RoundedCornerShape(10.dp)
             ) {
                 Text(
                     text = group.cardCount.toString(),
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
-                    style = MaterialTheme.typography.labelMedium,
+                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp),
+                    style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.surface
                 )
             }
@@ -776,7 +790,7 @@ private fun CardGridItem(
                             .padding(4.dp)
                             .size(12.dp)
                             .clip(CircleShape)
-                            .background(parseColor(label.color))
+                            .background(parseColorSafe(label.color))
                     )
                 }
             }
@@ -825,7 +839,7 @@ private fun CardListItem(
                     modifier = Modifier
                         .size(12.dp)
                         .clip(CircleShape)
-                        .background(parseColor(label.color))
+                        .background(parseColorSafe(label.color))
                 )
                 Spacer(modifier = Modifier.width(8.dp))
             }
@@ -894,14 +908,6 @@ private fun ManaSymbol(symbol: String) {
             color = textColor,
             fontWeight = FontWeight.Bold
         )
-    }
-}
-
-private fun parseColor(colorString: String): Color {
-    return try {
-        Color(android.graphics.Color.parseColor(colorString))
-    } catch (e: Exception) {
-        Color.Gray
     }
 }
 
