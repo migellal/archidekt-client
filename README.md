@@ -54,7 +54,7 @@ Unofficial Android mobile client for [Archidekt](https://archidekt.com) - a deck
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/archidekt-client.git
+git clone https://github.com/migellal/archidekt-client.git
 cd archidekt-client
 
 # Build debug APK
